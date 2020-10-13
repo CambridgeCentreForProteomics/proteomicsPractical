@@ -1,0 +1,90 @@
+---
+title: "The pitfalls of thresholding on the point estimate of a difference"
+output: html_notebook
+---
+
+NOTE: This is not the core practical notebook - see ProteomicsPractical.Rmd first
+
+
+#### Simulation to demonstrate the pitfalls of thresholding on the point estimate
+
+Below is a concrete example to help make clear why thresholding on the point estimate of the difference between two means is not a sensible approach. Below, we simulate the process of sampling from two populations where the true difference between the means is 0.4. The number of replicates and the standard deviation are varied, and for each combination, we perform 1000 iterations. Here we are only interested in differences > 0.5, so whenever we detect a change over our threshold, this is a false positive.
+
+The code below makes a function to perform the simulation and plot the results
+```{r}
+set.seed(0)
+
+simulateRandomSampling <- function(mean1, mean2, threshold){
+  
+  rep_values <- c(3,5,10,25,100,1000)
+  iterations <- 1000
+  stds <- c(seq(0.1,1,0.1))
+  
+  simulated_data <- matrix(nrow = (length(rep_values)*iterations*length(stds)), ncol = 8)
+  n <- 1
+  for(reps in rep_values){
+    for(std in stds){
+      for(i in 1:iterations){
+        
+        random_sample1 <- rnorm(reps, mean1, sd = std)
+        random_sample2 <- rnorm(reps, mean2, sd = std)
+        
+        mean_1 <- mean(random_sample1)
+        mean_2 <- mean(random_sample2)
+        difference <- mean_2 - mean_1
+        
+        ci <- as.numeric(t.test(random_sample2, random_sample1)$conf.int)
+        ci_width <- (max(ci) - min(ci))
+        
+        simulated_data[n,] <- c(reps, i, std, mean_1, mean_2, difference, min(ci), ci_width)
+        
+        n <- n + 1
+      }
+    }
+  }
+  
+  simulated_data <- data.frame(simulated_data)
+  colnames(simulated_data) <- c("replicate", "iteration", "sd", "mean1", "mean2", "difference", "ci_min", "ci_width")
+  
+  my_theme <- theme_bw() +
+    theme(text=element_text(size=20), axis.text.x=element_text(angle=90, vjust=0.5, hjust=1), aspect.ratio=1)
+  
+  p <- ggplot(simulated_data, aes(factor(replicate), difference)) +
+    geom_boxplot() + facet_wrap(~factor(sd)) +
+    xlab("Replicates") + ylab("Difference between means") +
+    scale_fill_continuous(limits=c(0,50)) +
+    my_theme
+    
+  print(p)
+  
+  agg_df <- aggregate(simulated_data$difference>threshold,
+                      by=list(simulated_data$replicate, simulated_data$sd),
+                      FUN=mean)
+  
+  agg_ci_df <- aggregate(simulated_data$ci_min>threshold,
+                      by=list(simulated_data$replicate, simulated_data$sd),
+                      FUN=mean)
+  
+  agg_df$selection_method <- "Point estimate"
+  agg_ci_df$selection_method <- "CI interval"
+  
+  agg_df <- rbind(agg_df, agg_ci_df)
+  agg_df$selection_method <- factor(agg_df$selection_method, levels=c("Point estimate", "CI interval"))
+  
+  p <- ggplot(rbind(agg_df, agg_ci_df), aes(as.factor(Group.1), as.factor(Group.2), fill=100*x)) + geom_tile() +
+    scale_fill_continuous(name="Percentage\nidentified\nas over\nthreshold") +
+    xlab("Replicates") + ylab("Population sd") +
+    my_theme +
+    facet_wrap(~selection_method)
+  
+  print(p)
+}
+```
+
+The first figure shows the distribution of estimated differences between the two populations, with each plot showing the results with a difference sd for the populations. As you would expect, increasing the number of replicates and decreasing the sd leads to more accurate estimates of the true difference (0.4).
+
+The second plot shows what would happen if we used a cut off of 0.5 to identify biologically relevant differences, using either the point estimate (left), or confidence interval (right). As you can see, using the point estimate leads to frequent assertion that the difference between the means is > 0.5 when the replicate number is low and the variance is high. Thus we are more likely to incorrectly assert that a difference is above 0.5 when the protein abundance is more variable. We can see that this is not the case when we use the confidence interval.
+
+```{r, fig.height=8, fig.width=8}
+simulateRandomSampling(mean1=1, mean2=1.4, threshold=0.5)
+```
