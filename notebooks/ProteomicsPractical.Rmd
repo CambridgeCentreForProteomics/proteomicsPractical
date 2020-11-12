@@ -31,6 +31,8 @@ To measure protein abundances, proteins are first digested to peptides with tryp
 
 The peptide spectrum matching and quantification steps have already been completed and the peptide-level quantification is provided to you.
 
+![](images/experimental_plan.png)
+
 ***
 **Check your knowledge**
 
@@ -44,11 +46,6 @@ The peptide spectrum matching and quantification steps have already been complet
 
 
 ***
-
-
-![](images/experimental_plan.png)
-
-
 
 
 First, we load the required libraries. If you get a message saying `Error in library(sds) : there is no package called ...`,
@@ -532,13 +529,13 @@ TTest_results_annotated %>%
 
 Can you see what functions some of these proteins might have based on their descriptions? 
 
-As with most such analyses there are likely be some proteins you have heard of, but many more which you haven't. After all, there are ~20,000 proteins in the human genome! It's also hard looking at the proteins which have changed to understand what shared functional pathways they may have in common. Many of the protein's functions may not be obvious just from their description. Likewise, the sub-cellular localisation may not be obvious, and it could be that most of the proteins with altered abundance have the same localisation which would be an interesting observation. Even if you were a fountain of knowledge on human proteins, it's difficult by eye to know if an observation is unexpected. For example, if you see 4 kinases which are all more abundant in G1, is this a relevant observation? To answer this, you would need to know how many kinases could have changed abundance in your experiment, from which you can estimate how many kinases you would expect to see by chance given the number of proteins with an altered abundance. In short, just looking at the protein descriptions only gets you so far. 
+As with most such analyses there are likely be some proteins you have heard of, but many more which you haven't. After all, there are ~20,000 proteins in the human genome! It's also hard looking at the proteins which have changed to understand what shared functional pathways they may have in common. Many of the protein's functions may not be obvious just from their description. Likewise, the sub-cellular localisation may not be obvious, and it could be that most of the proteins with altered abundance have the same localisation which would be an interesting observation. Even if you were a fountain of knowledge on human proteins, it's difficult by eye to know if an observation is unexpected. For example, if you see 4 kinases which are all more abundant in G1, is this a relevant observation? To answer this, you would need to know how many kinases _could_ have changed abundance in your experiment, from which you can estimate how many kinases you would expect to see _by chance_, given the number of proteins with an altered abundance. In short, just looking at the protein descriptions only gets you so far. 
 
 ### 4b. Identifying over-representation of particular protein functions/localisations
 
 Thankfully, the [Gene Ontology (GO) consortium](http://www.geneontology.org/) have defined a set of descriptions for genes and their protein products, split into 3 categories, Molecular Functions, Biological Processes and Cellular Localisations. These terms are hierarchical. For example as shown [here](https://www.ebi.ac.uk/QuickGO/term/GO:0003723), `RNA binding` is a child term of `Nucleic acid binding` and a parent term of e.g `RNA cap binding`. 
 
-To understand the biological relevance of the protein abundance changes between M and G1 phase, we can look for GO terms which are over-representated in the proteins with a significant change. A GO over-representation analysis involves asking whether a GO term is more frequent in a selected set of proteins (the `foreground`) relative to all the proteins which could have been selected (the `background`). As with any over-representation analysis, it's important to consider what the `background` should be. 
+To understand the biological relevance of the protein abundance changes between M and G1 phase, we can look for GO terms which are over-represented in the proteins with a significant change. A GO over-representation analysis involves asking whether a GO term is more frequent in a selected set of proteins (the `foreground`) relative to all the proteins which could have been selected (the `background`). As with any over-representation analysis, it's important to consider what the `foreground` and `background` should be. 
 
 
 In this case, we could either perform:
@@ -551,6 +548,7 @@ In this case, we could either perform:
 
 1. What do you the most suitable background would be for the GO term over-represenatation analysis?
 2. Do you think it makes more sense to perform one or two tests for the GO term over-represenatation analysis?
+3. What should the background be? All human protein coding genes?
 
 ***
 
@@ -612,7 +610,7 @@ The GORILLA output is split into three sections for `Processes`, `Function` and 
 
 **You've now completed the practical - Well done!**
 
-If you want to continue, you can investigate the affect of changing the thresholds used above for selecting the proteins with altered abundance. Does this change your biological interpretation of the results? Alternatively, you can have a look for R packages, software, online tools or publically available data which could help you to perform the analyses you've suggested. Finally, if you're interested in a demonstration of the pitfalls of thresholding on the point estimate of the difference between means, see the notebook entitled "Thresholding_on_point_estimate.R".
+If you want to continue, you can investigate the affect of changing the thresholds used above for selecting the proteins with altered abundance. Does this change your biological interpretation of the results? Alternatively, you can have a look for R packages, software, online tools or publically available data which could help you to perform the analyses you've suggested in the final question above. Finally, if you're interested in a demonstration of the pitfalls of thresholding on the point estimate of the difference between means, see the notebook entitled "Thresholding_on_point_estimate".
 
 ***
 

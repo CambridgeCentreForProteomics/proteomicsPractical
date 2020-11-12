@@ -81,7 +81,7 @@ simulateRandomSampling <- function(mean1, mean2, threshold){
 }
 ```
 
-The first figure shows the distribution of estimated differences between the two populations, with each plot showing the results with a difference sd for the populations. As you would expect, increasing the number of replicates and decreasing the sd leads to more accurate estimates of the true difference (0.4).
+The first figure shows the distribution of estimated differences between the two populations, with each plot showing the results with a different sd for the populations. As you would expect, increasing the number of replicates and decreasing the sd leads to more accurate estimates of the true difference (0.4).
 
 The second plot shows what would happen if we used a cut off of 0.5 to identify biologically relevant differences, using either the point estimate (left), or confidence interval (right). As you can see, using the point estimate leads to frequent assertion that the difference between the means is > 0.5 when the replicate number is low and the variance is high. Thus we are more likely to incorrectly assert that a difference is above 0.5 when the protein abundance is more variable. We can see that this is not the case when we use the confidence interval.
 
