@@ -11,26 +11,36 @@ output:
     toc_depth: 3
 ---
 
+***
+
+**Learning outcomes**
+
+1. Be able to aggregate peptide level data to obtain protein-level quantification.
+2. Be able to normalise proteomics data and understand why we perform normalistion.
+3. Perform and understand statistical tests to identify changes in protein abundances.
+4. Perform a functional analysis to identify the perturbed biological processes
+
+***
+
 ## 1. Introduction
 This practical analyses data from an experiment to examine proteins involved in the cell cycle (See diagram below). Cells from a human cell line are treated with Nocodazole to inhibit polymerisation of microtubules and block transition beyond the prometaphase stage of M-phase.
 
 Cells are then released from M-phase by withdrawing Nocodazole. Samples are taken in triplicate at 0 hours and at 5 hours after release from M-phase. This process generates 3 x M-phase and 3 x G1-phase samples from 6 separate batches of cells.
 
-To measure protein abundances, proteins are first digested to peptides with trypsin. The same quantity of peptides from each sample was then labelled using tandem mass tags TMT 6 plex tag. This allows all the samples to be combined into a single MS run to yield quantification over the same peptides in each sample. 
+To measure protein abundances, proteins are first digested to peptides with trypsin. The same quantity of peptides from each sample was then labelled using Tandem Mass Tags (TMT). This allows all the samples to be combined into a single MS run to yield quantification over the same peptides in each sample. 
 
 The peptide spectrum matching and quantification steps have already been completed and the peptide-level quantification is provided to you.
 
 ***
 **Check your knowledge**
 
-1. Can you remember the stages of the cell-cyle? What happens at each stage?
-2. Why does inhibiting polymerisation of microtubles block transition beyond prometaphase?
-3. What else might inhibiting polymerisation of microtubules do to the cells?
-4. Why do we take experimental triplicates?
-5. Why do we digest using trypsin? At which residues does trypsin cleave?
-6. What is a tandem mass tag?
-7. Why do we process all samples in the same MS run?
-8. What is peptide spectrum matching
+1. Why does inhibiting polymerisation of microtubles block transition beyond prometaphase?
+2. What else might inhibiting polymerisation of microtubules do to the cells?
+3. Why do we take experimental triplicates?
+4. Why do we digest using trypsin? At which residues does trypsin cleave?
+5. What is a tandem mass tag?
+6. Why do we process all samples in the same MS run?
+7. What is peptide spectrum matching?
 
 
 ***
@@ -38,16 +48,7 @@ The peptide spectrum matching and quantification steps have already been complet
 
 ![](images/experimental_plan.png)
 
-***
 
-**Learning outcomes**
-
-1. Be able to aggregate peptide level data to obtain protein-level quantification.
-2. Be able to normalise data and understand why we perform normalistion.
-3. Perform and understand statistical tests to identify changes in protein abundances.
-4. Perform a functional analysis to identify the perturbed biological processes
-
-***
 
 
 First, we load the required libraries. If you get a message saying `Error in library(sds) : there is no package called ...`,
@@ -56,12 +57,10 @@ temporarily uncomment the neccessary lines to install the package
 ```{r}
 #install.packages("tidyr")
 #install.packages("dplyr")
-#install.packages("reshape2")
 #install.packages("ggplot2")
 
 suppressMessages(library(tidyr))
 suppressMessages(library(dplyr))
-suppressMessages(library(reshape2))
 suppressMessages(library(ggplot2))
 ```
 
@@ -71,11 +70,10 @@ suppressMessages(library(ggplot2))
 
 Usually your data is provided to you in some format such as a text file, excel file or some other format. We would like to load this data into R so we can analyse it. 
 
-For the purposes of this practical, peptides which cannot be uniquely assigned to a single protein have been removed. Peptides which come from proteins in the [cRAP database](http://www.thegpm.org/crap/) of common proteomics contaminates, e.g keratin, have also been removed. 
+For the purposes of this practical, peptides which come from proteins in the [cRAP database](http://www.thegpm.org/crap/) of common proteomics contaminates, e.g keratin, have been removed. Peptides which cannot be uniquely assigned to a single protein have also been removed. 
 
 The data is provided here in a tab-separated text file `"data/peptide_data.tsv"`, which is located in the repository. 
-
-We start by reading the peptide-level quantification data into a dataframe. The code chunk below loads the data from the .tsv file into an R dataframe called `peptides_quant`.
+We start by reading the peptide-level quantification data into a `dataframe`. The code chunk below loads the data from the .tsv file into an R dataframe called `peptides_quant`.
 
 ```{r}
 peptides_quant <- read.table("data/peptide_data.tsv", sep="\t", header=T)
@@ -110,24 +108,26 @@ peptides_quant %>% # this is a 'pipe'. See the next section if you haven't come 
 1. Where can I find keratin in daily life?
 2. Why is keratin a contaminate?
 3. Why do we worry about contaminates?
-4. How many peptides were quantified in this experiment?
-5. What do you think NA means in this context?
-6. Why do you think some of the quantification values are NA?
-7. What do you think we should do with NA?
-8. Why might we have multiple quantification values for the same peptide but with different modifications?
-9. What does if mean to say a peptide is 'assigned' to a protein. Could a peptide be assigned to multiple proteins?
+4. What does if mean to say a peptide is 'assigned' to a protein. Why could a peptide be assigned to multiple proteins?
+5. How many peptides were quantified in this experiment?
+6. What do you think NA means in this context?
+7. Why do you think some of the quantification values are NA?
+8. What do you think we should do with NA?
+9. Why do peptide 'modifications' represent?
+10. Why might we have multiple quantification values for the same peptide but with different modifications?
+
 
 ***
 
 ### 2b. `magrittr` pipes
 The `magrittr` package introduced 'pipe' functions to R. Here, we will be using the `%>%` pipe a few times so the next two cells demonstrates how this works in case you haven't come across it before as the syntax can look a little odd. Feel free to skip these cells if you're confident you understand '%>%'.
 
-The `%>%` pipe allows you to use the output from one function to be the input for the next function, much like the `|` pipe in unix. The main advantage of this is to simply reading the code.To keep things simple here, for the example below, we will just consider a simple vector of values, from which we wish to identify the mean of the log2-transformed values 
+The `%>%` pipe allows you to use the output from one function to be the input for the next function, much like the `|` pipe in unix. The main advantage of this is to make the code easier to understand. The pipe can be used to pass any object. However, to keep things simple here, for the example below, we will just consider a simple vector of values, from which we wish to identify the mean of the log2-transformed values.
 ```{r}
 values <- c(1, 4, 100, 21, 34)
 
 # we can wrap the mean and log functions together, but this can get ugly, 
-# especially if there are lots of arguments
+# especially if there are lots of functions and arguments.
 mean(log(values, base=2))
 
 # with magrittr pipes, we can see the 'flow' from
@@ -135,16 +135,7 @@ values %>%  # the values vector, through
   log(base=2) %>%  # the log(base=2) transformation, and finally,
   mean()  # the mean summarisation
 ```
-Normally, we want to pass the object before the pipe into the first argument of the function after the pipe. However, since the object is just passed to the first unnamed argument, we can pass it to any argument by providing the values for all prior arguments, By way of a simple example, not the first `setdiff` call below is equivalent to `setdiff(a, b)`, whereas the second `setdiff` call is equivalent to `setdiff(b, a)`.
-```{r}
-a <- c(1, 2, 3)
-b <- c(3, 4, 5)
-a %>% setdiff(b)
-setdiff(a, b)
 
-a %>% setdiff(x=b)
-setdiff(b, a)
-```
 Magrittr pipes become especially useful for piping together complex functions when reformating, summarising and plotting data. They also make it much easier to document each step. If you're wondering how the package got its name, see [The_Treachery_of_Images](https://en.wikipedia.org/wiki/The_Treachery_of_Images)
 
 With that aside done, let's return to the practical.
@@ -159,7 +150,7 @@ We can aggregate the quantification values across the multiple instances of the 
 peptides_quant_no_mods <- peptides_quant %>%
   select(-Modifications) %>% # exclude the Modifications column
   group_by(Sequence, master_protein) %>% # group by the Sequence and master_protein columns
-  summarise_all(funs(sum(.))) %>% # aggregate the quantification values using the sum function
+  summarise_all(list(~sum(.))) %>% # aggregate the quantification values using the sum function
   data.frame() # convert back to a data.frame
 
 print(head(peptides_quant_no_mods))
@@ -184,27 +175,24 @@ missing_values_post_agg <- peptides_quant_no_mods %>%
 message(sprintf("Before aggegation, we had %i peptides with missing values, after aggregation we have %i peptides with missing values", missing_values_pre_agg, missing_values_post_agg))
 ```
 
-For the peptides with missing values, we could impute the values but this is beyond the scope of this practical. For our purposes, we remove any peptide with a missing value
+We could impute the missing values but this is beyond the scope of this practical. For our purposes, we will remove any peptide with a missing value
 ```{r}
 peptides_quant_no_mods_no_na <- peptides_quant_no_mods %>% na.omit()
 ```
-
-Before we proceed with the aggregation to protein-level quantification, we should consider whether we need to perform any normalisation to the data. The total peptide abundance in each column should be approximately the same. However, we can see below that this is not the case.
 
 ***
 **Check your knowledge**
 
 1. Why should we remove NA?
 2. Are there biological reasons for NA?
-3. How should we impute?
-4. What imputation stratagies exist?
+3. What imputation stratagies exist?
 
 ***
 
-
-
 ### 2e. Normalisation: What is it and why do we do it?
-Below, we obtain the sum of peptide abundances in each sample (column). Note these are relatively similar but M_2 is ~2-fold less tha M_1 or G1_1.
+Before we proceed with the aggregation to protein-level quantification, we should consider whether we need to perform any normalisation to the data. The total peptide abundance in each column should be approximately the same. However, we can see below that this is not the case.
+
+Below, we obtain the sum of peptide abundances in each sample (column). Note these are relatively similar but M_2 is ~2-fold less than M_1 or G1_1.
 ```{r}
 pep_tots <- peptides_quant_no_mods_no_na %>%
   select(one_of(quant_columns)) %>%
@@ -226,7 +214,8 @@ formatC(pep_tots, format='e', digits=1)
 Next, we normalise the peptide-level quantification to adjust for the differences in the total peptide abundance
 
 ```{r}
-pep_tots_correction_factors <- pep_tots/mean(pep_tots) # make a correction factor using the total peptide abundance
+# make a correction factor using the total peptide abundance
+pep_tots_correction_factors <- pep_tots/mean(pep_tots) 
 
 peptides_quant_norm <- peptides_quant_no_mods_no_na
 
@@ -250,7 +239,7 @@ norm_pep_tots <- peptides_quant_norm %>%
 formatC(norm_pep_tots, format='e', digits=1)
 ```
 
-We plot the distribution of abundance values before and after normalisation allowing us to see the impact of normalisation. Here we create a small function to perform the plotting to save space from copying code. Note that we are plotting the log of the abundance values. This is because the abundance values extend across 4-orders of magnitude and are not Gaussian (normal) distributed. However, they are approximately log-Gaussian distributed.
+We plot the distribution of abundance values before and after normalisation allowing us to see the impact of normalisation. Here we create a small function to perform the plotting to save space from copying code. Note that we are plotting the log of the abundance values. This is because the abundance values extend across 4-orders of magnitude and are not Gaussian (normally) distributed. However, they are approximately log-Gaussian distributed.
 ```{r, message=FALSE}
 plotPeptideAbundance <- function(peptide_data, title=""){
 
@@ -340,7 +329,9 @@ This is a very simple experimental design and we recommend that you use a studen
 We perform a log-transform the data before conducting the t-test. We use `log2()` since it's intuitive to have a single increase by a point in the `log2()` scale indicate a doubling and a two point increase indicate a 4-fold increase.
 
 ```{r}
-protein_quant_log <- protein_quant
+protein_quant_log <- protein_quant # create a new copy of the protein quant data
+
+# log2-transform the quantification values
 protein_quant_log[,quant_columns] <- log2(protein_quant_log[,quant_columns])
 ```
 
@@ -374,8 +365,8 @@ TTest_results <- protein_quant_log
 
 # apply the runSingleTTest function over each row ("MARGIN=1") for the quantification columns
 # We need to transform (t) the values returned by apply to get the correct layout
-TTest_results[c("p.value", "difference", "CI_diff_low", "CI_diff_high")] <- t(apply(
-  TTest_results[, quant_columns], MARGIN = 1, runsingleTTest))
+TTest_results[c("p.value", "difference", "CI_diff_low", "CI_diff_high")] <- t(
+  apply(TTest_results[, quant_columns], MARGIN = 1, runsingleTTest))
 
 ```
 
@@ -425,7 +416,7 @@ table(TTest_results$sig)
 
 ***
 
-We visualise the t-test results in a so-called "Volcano" plot (see below). In the second plot we add the 95% confidence intervals for the change in abundance. Many of the signficant changes are small. In fact, just 16/156 of the significant changes in abundance are greater than 2-fold (Note that we have log base 2 transformed the abundance data so a change in abundance of 1 on the log scale is a 2-fold change).
+We visualise the t-test results in a so-called "Volcano" plot (see below). In the second plot we add the 95% confidence intervals for the change in abundance. Many of the significant changes are small. In fact, just 16/156 of the significant changes in abundance are greater than 2-fold (Remember that we have log base 2 transformed the abundance data so a change in abundance of 1 on the log scale is a 2-fold change).
 
 ```{r}
 cat("Tally of changes > 2-fold for proteins where null hypothesis rejected")
@@ -506,8 +497,8 @@ print(p)
 ***
 **Check your knowledge**
 
-1. Suppose you screened many patients for their levels of a single known disease-associated protein with a blood test, would you try and control the FWER or the FDR? Why?
-2. Suppose you quantified all proteins in the blood of patients with a disease and compared to matched healthy patients. How would you decide what significant changes in abundance are clinically relevant?
+1. Imagine you took blood samples from patients with a disease and compared to matched healthy patients and then quantified all the proteins present. How would you decide what significant changes in abundance are clinically relevant?
+2. Imagine you have screened many patients for their blood plasma levels of a single known disease-associated protein, would you try and control the FWER or the FDR? Why?
 ***
 
 
