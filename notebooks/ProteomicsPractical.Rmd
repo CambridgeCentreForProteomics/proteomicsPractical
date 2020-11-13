@@ -564,15 +564,6 @@ p <- ggplot(TTest_results, aes(x=difference, y=-log(p.value,10), fill=(sig & rel
 print(p)
 ```
 
-***
-
-***
-**Check your knowledge**
-
-1. Imagine you took blood samples from patients with a disease and compared to matched healthy patients and then quantified all the proteins present. How would you decide what significant changes in abundance are clinically relevant?
-2. Imagine you have screened many patients for their blood plasma levels of a single known disease-associated protein, would you try and control the FWER or the FDR? Why?
-***
-
 
 ## 4. Functional analysis of proteins with differential abundance
 
@@ -669,7 +660,7 @@ To use [GORILLA](http://cbl-gorilla.cs.technion.ac.il/):
 
 Leave the advanced parameters as they are and click `Search Enriched GO terms`.
 
-The GORILLA output is split into three sections for `Processes`, `Function` and `Component`. For each section there is graph depiciting the over-representated terms and their relationship to one another. Below this there is a table detailing the GO terms which are over-represented. Each GO terms is associated with a p-value for the over-representation and an estimation of the False Discovery Rate (FDR). For this practical, only consider any GO term over-representation where the FDR < 0.01 (1E-2)
+The GORILLA output is split into three sections for `Processes`, `Function` and `Component`. For each section there is graph depicting the over-represented terms and their relationship to one another. Below this there is a table detailing the GO terms which are over-represented. Each GO terms is associated with a p-value for the over-representation and an estimation of the False Discovery Rate (FDR). For this practical, only consider any GO term over-representation where the FDR < 0.01 (1E-2)
 
 
 **Check your knowledge**
@@ -681,7 +672,7 @@ Too many to include here!
 The change in protein abundance from M to G1 is predominantly one of microtubule & spindle proteins no longer being required and therefore degraded. It doesn't appear that any functional group of proteins are required in G1 that aren't equally abundant in M. Increases in abundance probably reflect multiple very small changes in protein requirements in G1 vs M.
 
 3. Why do you think there are so many related GO terms identified?
-GO terms are heirachical. So the same proteins will contribute to many different terms being signficiantly over-represented.
+GO terms are hierarchical. So the same proteins will contribute to many different terms being signficiantly over-represented.
 
 4. From inspecting the over-represented GO terms, can you say whether the Nocodazole has had the desired effect?
 It appears so. The most over-represented terms (by p-value) include 'cell cycle process (BP)', 'sister chromatid segregation (BP)', 'microtubule binding (MF)' & 'spindle (CC)'.   
@@ -691,7 +682,7 @@ You could consider the following (suggested reference databases in parentheses)
 - The biochemical pathways they are known to operate in (KEGG, etc) 
 - Their interacting partners (IntAct, String.db, etc)
 - The co-regulation of their mRNAs (Expression Atlas)
-- Protein subcellular localisation in experiemental datasets
+- Protein subcellular localisation in experimental datasets
 - Previously published proteomics studies of these cell cycle stages
 
 ***
