@@ -540,8 +540,6 @@ GetCIMinDiff <- function(row){
 # apply GetCIMinDiff to each protein 
 TTest_results$abs_CI_diff <- apply(TTest_results, MARGIN=1, GetCIMinDiff) 
 
-
-# 50% difference = 2^0.55
 TTest_results$relevant_change <- abs(TTest_results$abs_CI_diff)> log2(1.25)
 
 cat("Cross-tabulation of significant differences (columns) and differences where CI indicates difference > 25% (rows)\n")
