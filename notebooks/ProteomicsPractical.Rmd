@@ -438,7 +438,7 @@ print(p2)
 
 You may not be concerned that many of the changes are relatively small. However, it's reasonable to assume a very small change in abundance is unlikely to be biologically relevant. Therefore, it's beneficial to also threshold on the scale of the change, the so called "effect size". We could simply apply a threshold on the point estimate of the difference between the two populations. However, this would not take account of the confidence we have about the true difference between the two populations. For a more explanation of the pitfalls of thresholding on the point estimate, see the example at the bottom of this notebook.
 
-For this reason, we apply a threshold on the 95% confidence interval of the difference between the means. In the cell below we apply a filter that change is at least 1.5-fold
+For this reason, we apply a threshold on the 95% confidence interval of the difference between the means. In the cell below we apply a filter that change is at least 1.25-fold
 
 ```{r}
 
@@ -465,8 +465,7 @@ GetCIMinDiff <- function(row){
 # apply GetCIMinDiff to each protein 
 TTest_results$abs_CI_diff <- apply(TTest_results, MARGIN=1, GetCIMinDiff) 
 
-# 50% difference = 2^0.55
-TTest_results$relevant_change <- abs(TTest_results$abs_CI_diff)> ((2^0.5)-1)
+TTest_results$relevant_change <- abs(TTest_results$abs_CI_diff)> log2(1.25)
 
 cat("Cross-tabulation of significant differences (columns) and differences where CI indicates difference > 25% (rows)\n")
 print(table(TTest_results$relevant_change, TTest_results$sig))
@@ -548,7 +547,6 @@ In this case, we could either perform:
 
 1. What do you the most suitable background would be for the GO term over-represenatation analysis?
 2. Do you think it makes more sense to perform one or two tests for the GO term over-represenatation analysis?
-3. What should the background be? All human protein coding genes?
 
 ***
 
@@ -593,13 +591,13 @@ To use [GORILLA](http://cbl-gorilla.cs.technion.ac.il/):
 
 Leave the advanced parameters as they are and click `Search Enriched GO terms`.
 
-The GORILLA output is split into three sections for `Processes`, `Function` and `Component`. For each section there is graph depiciting the over-representated terms and their relationship to one another. Below this there is a table detailing the GO terms which are over-represented. Each GO terms is associated with a p-value for the over-representation and an estimation of the False Discovery Rate (FDR). For this practical, only consider any GO term over-representation where the FDR < 0.01 (1E-2)
+The GORILLA output is split into three sections for `Processes`, `Function` and `Component`. For each section there is graph depicting the over-represented terms and their relationship to one another. Below this there is a table detailing the GO terms which are over-represented. Each GO terms is associated with a p-value for the over-representation and an estimation of the False Discovery Rate (FDR). For this practical, only consider any GO term over-representation where the FDR < 0.01 (1E-2)
 
 
 **Check your knowledge**
 
 1. What GO terms are over-represented in the proteins with a change in abundance between M and G1 phase?
-2. Why might there only be over-represented GO terms in the proteins with decreased abundance?
+2. Why might there only be over-represented GO terms in the proteins with decreased abundance in G1 phase?
 3. Why do you think there are so many related GO terms identified?
 4. From inspecting the over-represented GO terms, can you say whether the Nocodazole has had the desired effect?
 5. What other analyses could you perform to better understand the function of these proteins?
