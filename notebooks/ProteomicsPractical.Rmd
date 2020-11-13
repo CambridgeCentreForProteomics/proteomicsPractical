@@ -488,16 +488,6 @@ p <- ggplot(TTest_results, aes(x=difference, y=-log(p.value,10), fill=(sig & rel
 print(p)
 ```
 
-***
-
-***
-**Check your knowledge**
-
-1. Imagine you took blood samples from patients with a disease and compared to matched healthy patients and then quantified all the proteins present. How would you decide what significant changes in abundance are clinically relevant?
-2. Imagine you have screened many patients for their blood plasma levels of a single known disease-associated protein, would you try and control the FWER or the FDR? Why?
-***
-
-
 ## 4. Functional analysis of proteins with differential abundance
 
 ### 4a. What are the proteins
