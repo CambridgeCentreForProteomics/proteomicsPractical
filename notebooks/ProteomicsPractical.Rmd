@@ -119,7 +119,7 @@ peptides_quant %>% # this is a 'pipe'. See the next section if you haven't come 
 ### 2b. `magrittr` pipes
 The `magrittr` package introduced 'pipe' functions to R. Here, we will be using the `%>%` pipe a few times so the next two cells demonstrates how this works in case you haven't come across it before as the syntax can look a little odd. Feel free to skip these cells if you're confident you understand '%>%'.
 
-The `%>%` pipe allows you to use the output from one function to be the input for the next function, much like the `|` pipe in unix. The main advantage of this is to make the code easier to understand. The pipe can be used to pass any object. However, to keep things simple here, for the example below, we will just consider a simple vector of values, from which we wish to identify the mean of the log2-transformed values.
+The `%>%` pipe allows you to use the output from one function to be the input for the next function, much like the `|` pipe in bash. The main advantage of this is to make the code easier to understand. The pipe can be used to pass any object. However, to keep things simple here, for the example below, we will just consider a simple vector of values, from which we wish to identify the mean of the log2-transformed values.
 ```{r}
 values <- c(1, 4, 100, 21, 34)
 
