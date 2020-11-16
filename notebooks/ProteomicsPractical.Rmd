@@ -157,6 +157,7 @@ print(head(peptides_quant_no_mods))
 
 We still have peptides with missing values
 ```{r}
+options(width = 60)
 quant_columns <- colnames(peptides_quant)[4:9]
 
 missing_values_pre_agg <- peptides_quant  %>%
@@ -169,7 +170,9 @@ missing_values_post_agg <- peptides_quant_no_mods %>%
   is.na() %>% 
   sum()
 
-message(sprintf("Before aggegation, we had %i peptides with missing values, after aggregation we have %i peptides with missing values", missing_values_pre_agg, missing_values_post_agg))
+message(sprintf("Before aggegation, we had %i peptides with missing values,
+after aggregation we have %i peptides with missing values",
+                missing_values_pre_agg, missing_values_post_agg))
 ```
 
 We could impute the missing values but this is beyond the scope of this practical. For our purposes, we will remove any peptide with a missing value
