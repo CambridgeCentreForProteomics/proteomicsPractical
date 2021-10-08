@@ -3,12 +3,71 @@ title: "The pitfalls of thresholding on the point estimate of a difference"
 output: html_notebook
 ---
 
-NOTE: This is not the core practical notebook - see ProteomicsPractical.Rmd first
+# NOTE: This is not the core practical notebook - see ProteomicsPractical.Rmd first
 
+First, we read in the results from the previous notebook
+```{r}
+TTest_results_annotated <- read.table('./data/TTest_results_annotated.tsv',
+                                      header=TRUE, sep='\t')
+```
+### Selecting the most relevant changes
+In the ProteomicsPractical notebooks, we considered all proteins with a statistically signficant changes in abundance to be relevant, regardless of the effect size. You may not be concerned that many of the changes are relatively small. However, it's reasonable to assume a very small change in abundance is unlikely to be biologically relevant. Therefore, it's beneficial to also threshold on the scale of the change, the so called "effect size". We could simply apply a threshold on the point estimate of the difference between the two populations. However, this would not take account of the confidence we have about the true difference between the two populations. For a more explanation of the pitfalls of thresholding on the point estimate, see the example later in thiss notebook.
+
+For this reason, we apply a threshold on the 95% confidence interval of the difference between the means. In the cell below we apply a filter that change is at least 1.25-fold
+
+```{r}
+
+# Function to find the minimum distance between the CI and zero
+GetCIMinDiff <- function(ci_high, ci_low){
+  
+  if(sign(ci_low) != sign(ci_high) | # if low and high CI have diff. signs, or
+     ci_high==0 | ci_low == 0){ # either is zero
+    return(0) # then the CI overlaps zero
+  }
+  
+  else{
+    
+    if(abs(ci_high)<(abs(ci_low))){ # if abs. values of high CI is lower
+      return(ci_high) # return the high CI
+    }
+    
+    else{
+      return(ci_low) # otherwise, return the low CI
+    }
+  }
+}
+
+# apply GetCIMinDiff to each protein 
+TTest_results_annotated <- TTest_results_annotated %>%
+  rowwise() %>%
+  mutate(abs_CI_diff = GetCIMinDiff(CI_diff_high, CI_diff_low))
+
+TTest_results_annotated$relevant_change <- abs(TTest_results_annotated$abs_CI_diff)> log2(1.25)
+
+cat("Cross-tabulation of significant differences (columns) and differences where CI indicates difference > 25% (rows)\n")
+print(table(TTest_results_annotated$relevant_change, TTest_results_annotated$sig))
+
+```
+So we can see that for 104/156 proteins with a significant change in abundance, the 95 % CI for the difference suggests the change is > 50%.
+
+We can now make a new volcano plot to show which proteins are identified as having a statistically significant and biologically relevant change in abundance.
+```{r}
+
+p <- ggplot(TTest_results_annotated, aes(x=difference, y=-log(p.value,10), fill=(sig & relevant_change))) +
+  xlab("Change in abundance (G1 vs M)") + ylab("-log10(p-value") +
+  scale_fill_discrete(name="Significant &\nrelevant\nchange\nin abundance") +
+  geom_errorbarh(aes(xmin=CI_diff_low, xmax=CI_diff_high, colour=(sig & relevant_change))) +
+  geom_point(pch=21, stroke=0.25, size=3) +
+  scale_color_discrete(guide=F) +
+  theme_bw() +
+  theme(text=element_text(size=20))
+
+print(p)
+```
 
 #### Simulation to demonstrate the pitfalls of thresholding on the point estimate
 
-Below is a concrete example to help make clear why thresholding on the point estimate of the difference between two means is not a sensible approach. Below, we simulate the process of sampling from two populations where the true difference between the means is 0.4. The number of replicates and the standard deviation are varied, and for each combination, we perform 1000 iterations. Here we are only interested in differences > 0.5, so whenever we detect a change over our threshold, this is a false positive.
+Below is a concrete example to help make clear why thresholding on the point estimate of the difference between two means is not a sensible approach. Below, we simulate the process of sampling from two populations where the true difference between the means is 0.4. The number of replicates and the standard deviation are varied, and for each combination, we perform 1000 iterations. Here we are only interested in 'biologically relevant differences', which we define as > 0.5, so whenever we detect a change over our threshold, this is a false positive due to inaccurate estimate of the true effect size.
 
 The code below makes a function to perform the simulation and plot the results
 ```{r}
@@ -81,7 +140,7 @@ simulateRandomSampling <- function(mean1, mean2, threshold){
 }
 ```
 
-The first figure shows the distribution of estimated differences between the two populations, with each plot showing the results with a different sd for the populations. As you would expect, increasing the number of replicates and decreasing the sd leads to more accurate estimates of the true difference (0.4).
+The first figure shows the distribution of estimated differences between the two populations, with each plot showing the results with a different sd (as indicated in the facet title) for the populations. As you would expect, increasing the number of replicates and decreasing the sd leads to more accurate estimates of the true difference (0.4).
 
 The second plot shows what would happen if we used a cut off of 0.5 to identify biologically relevant differences, using either the point estimate (left), or confidence interval (right). As you can see, using the point estimate leads to frequent assertion that the difference between the means is > 0.5 when the replicate number is low and the variance is high. Thus we are more likely to incorrectly assert that a difference is above 0.5 when the protein abundance is more variable. We can see that this is not the case when we use the confidence interval.
 
