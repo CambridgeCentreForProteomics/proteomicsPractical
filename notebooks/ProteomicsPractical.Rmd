@@ -2,13 +2,13 @@
 title: "Quantitative proteomics data analysis"
 author: "Tom S. Smith and Oliver M. Crook"
 output:
-  pdf_document:
-    toc: yes
-    toc_depth: '3'
   html_document:
     toc: yes
     toc_float: yes
     toc_depth: 3
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
 ---
 
 ***
@@ -86,17 +86,9 @@ print(dim(peptides_quant))
 
 You'll notice that some of the quantification values of the peptides are "NA".
 
-If we re-order the dataframe, we can see that some of the peptides have the same sequence but different modifications.
-Take some time to understand what each of the following lines of code is doing.
+We can also see that some of the peptides have the same sequence but different modifications. Below, we inspect one such peptide sequence
 ```{r}
-isDuplicated <- duplicated(peptides_quant$Sequence) # Type ?duplicated to see what duplicated does
-
-duplicated_peptides <- unique(peptides_quant$Sequence[isDuplicated]) # identify the duplicated peptides
-
-peptides_quant %>% # this is a 'pipe'. See the next section if you haven't come across this before
-  filter(Sequence %in% duplicated_peptides) %>% # filter to only duplicated peptides
-  arrange(Sequence) %>% # sort by peptide sequence
-  head(4) # view the "head" of the data
+filter(peptides_quant, Sequence == 'AAAEELQEAAGAGDGATENGVQPPK') 
 ```
 
 ***
@@ -177,7 +169,10 @@ after aggregation we have %i peptides with missing values",
 
 We could impute the missing values but this is beyond the scope of this practical. For our purposes, we will remove any peptide with a missing value
 ```{r}
-peptides_quant_no_mods_no_na <- peptides_quant_no_mods %>% na.omit()
+rows_without_na <- rowSums(is.na(peptides_quant_no_mods[,3:8])) == 0
+
+peptides_quant_no_mods_no_na <- peptides_quant_no_mods[rows_without_na,]
+
 ```
 
 ***
@@ -277,10 +272,9 @@ Now we have a single quantification value for each peptide, we can aggregate acr
 
 ```{r}
 protein_quant <- peptides_quant_norm  %>%
-  select(-one_of(c("Sequence"))) %>% # exclude the Sequence column
+  select(-Sequence) %>% # exclude the Sequence column
   group_by(master_protein) %>% # group by the master_protein column
-  summarise_all(funs(median(.))) %>% # aggregate the quantification values using the median function
-  tibble::column_to_rownames('master_protein') # indexes dataframe with master_protein column
+  summarise_all(funs(median(.))) # aggregate the quantification values using the median function
 
 head(protein_quant)
 ```
@@ -326,7 +320,7 @@ This is a very simple experimental design and we recommend that you use a studen
 
 ***
 
-We perform a log-transform the data before conducting the t-test. We use `log2()` since it's intuitive to have a single increase by a point in the `log2()` scale indicate a doubling and a two point increase indicate a 4-fold increase.
+We perform a log-transform on the data before conducting the t-test. We use `log2()` since it's intuitive to have a single increase by a point in the `log2()` scale indicate a doubling and a two point increase indicate a 4-fold increase.
 
 ```{r}
 protein_quant_log <- protein_quant # create a new copy of the protein quant data
@@ -409,10 +403,6 @@ table(TTest_results$sig)
 **Check your knowledge**
 
 1. Can you add another command in the cell below to work out how many of the proteins have a significant increase in abundance and how many decrease?
-```{r}
-
-```
-
 
 ***
 
@@ -437,59 +427,6 @@ p2 <- p + geom_errorbarh(aes(xmin=CI_diff_low, xmax=CI_diff_high, colour=sig)) +
 print(p2)
 ```
 
-### 3b. Selecting the most relevant changes
-
-You may not be concerned that many of the changes are relatively small. However, it's reasonable to assume a very small change in abundance is unlikely to be biologically relevant. Therefore, it's beneficial to also threshold on the scale of the change, the so called "effect size". We could simply apply a threshold on the point estimate of the difference between the two populations. However, this would not take account of the confidence we have about the true difference between the two populations. For a more explanation of the pitfalls of thresholding on the point estimate, see the example at the bottom of this notebook.
-
-For this reason, we apply a threshold on the 95% confidence interval of the difference between the means. In the cell below we apply a filter that change is at least 1.25-fold
-
-```{r}
-
-# Function to find the minimum distance between the CI and zero
-GetCIMinDiff <- function(row){
-  
-  if(sign(row[['CI_diff_low']]) != sign(row[['CI_diff_high']]) | # if low and high CI have diff. signs, or
-     row[['CI_diff_high']]==0 | row[['CI_diff_low']] == 0){ # either is zero
-    return(0) # then the CI overlaps zero
-  }
-  
-  else{
-    
-    if(abs(row[['CI_diff_high']])<(abs(row[['CI_diff_low']]))){ # if abs. values of high CI is lower
-      return(row[['CI_diff_high']]) # return the high CI
-    }
-    
-    else{
-      return(row[['CI_diff_low']]) # otherwise, return the low CI
-    }
-  }
-}
-
-# apply GetCIMinDiff to each protein 
-TTest_results$abs_CI_diff <- apply(TTest_results, MARGIN=1, GetCIMinDiff) 
-
-TTest_results$relevant_change <- abs(TTest_results$abs_CI_diff)> log2(1.25)
-
-cat("Cross-tabulation of significant differences (columns) and differences where CI indicates difference > 25% (rows)\n")
-print(table(TTest_results$relevant_change, TTest_results$sig))
-
-```
-So we can see that for 86/156 proteins with a significant change in abundance, the 95 % CI for the differece suggests the change is > 50%.
-
-We can now make a new volcano plot to show which proteins are identified as having a statistically significant and biologically relevant change in abundance.
-```{r}
-
-p <- ggplot(TTest_results, aes(x=difference, y=-log(p.value,10), fill=(sig & relevant_change))) +
-  xlab("Change in abundance (G1 vs M)") + ylab("-log10(p-value") +
-  scale_fill_discrete(name="Significant &\nrelevant\nchange\nin abundance") +
-  geom_errorbarh(aes(xmin=CI_diff_low, xmax=CI_diff_high, colour=(sig & relevant_change))) +
-  geom_point(pch=21, stroke=0.25, size=3) +
-  scale_color_discrete(guide=F) +
-  theme_bw() +
-  theme(text=element_text(size=20))
-
-print(p)
-```
 
 ## 4. Functional analysis of proteins with differential abundance
 
@@ -503,25 +440,28 @@ human_proteins_ids_df <- read.csv(
     colClasses=c("character", "character", "character", "NULL", "NULL"),
   col.names = c("UniprotID", "Name", "Description", NA, NA))
 
-TTest_results_annotated <- merge(human_proteins_ids_df, TTest_results, by.x="UniprotID", by.y="row.names")
+TTest_results_annotated <- merge(human_proteins_ids_df, TTest_results, by.x="UniprotID", by.y="master_protein", all.y=TRUE)
 
+
+# we'll write the results out to file so they can be further interogated outside this notebooks
+write.table(TTest_results_annotated, './data/TTest_results_annotated.tsv',
+            row.names=FALSE, sep='\t')
 ```
 
 We can inspect the Descriptions for the proteins which have a significant decrease in abundance in G1 vs M
 ```{r}
 TTest_results_annotated %>%
   filter(sig==T) %>% # significant changes
-  filter(relevant_change==T) %>% # bioligically relevant changes
   filter(difference<0) %>% # decrease in abundance
-  arrange(abs_CI_diff) %>% # sort by CI
-  select(Name, Description, abs_CI_diff, FDR) %>% # select columns of interest
+  arrange(p.value) %>% # sort by CI
+  select(Name, Description, p.value, FDR) %>% # select columns of interest
   head(20)
   
 ```
 
 Can you see what functions some of these proteins might have based on their descriptions? 
 
-As with most such analyses there are likely be some proteins you have heard of, but many more which you haven't. After all, there are ~20,000 proteins in the human genome! It's also hard looking at the proteins which have changed to understand what shared functional pathways they may have in common. Many of the protein's functions may not be obvious just from their description. Likewise, the sub-cellular localisation may not be obvious, and it could be that most of the proteins with altered abundance have the same localisation which would be an interesting observation. Even if you were a fountain of knowledge on human proteins, it's difficult by eye to know if an observation is unexpected. For example, if you see 4 kinases which are all more abundant in G1, is this a relevant observation? To answer this, you would need to know how many kinases _could_ have changed abundance in your experiment, from which you can estimate how many kinases you would expect to see _by chance_, given the number of proteins with an altered abundance. In short, just looking at the protein descriptions only gets you so far. 
+As with most such analyses there are likely be some proteins you have heard of, but many more which you haven't. After all, there are ~20,000 protein-coding genes in the human genome! It's also hard looking at the proteins which have changed to understand what shared functional pathways they may have in common. Many of the protein's functions may not be obvious just from their description. Likewise, the sub-cellular localisation may not be obvious, and it could be that most of the proteins with altered abundance have the same localisation which would be an interesting observation. Even if you were a fountain of knowledge on human proteins, it's difficult by eye to know if an observation is unexpected. For example, if you see 4 kinases which are all more abundant in G1, is this a relevant observation? To answer this, you would need to know how many kinases _could_ have changed abundance in your experiment, from which you can estimate how many kinases you would expect to see _by chance_, given the number of proteins with an altered abundance. In short, just looking at the protein descriptions and using your prior knowledge only gets you so far. 
 
 ### 4b. Identifying over-representation of particular protein functions/localisations
 
@@ -544,7 +484,7 @@ In this case, we could either perform:
 ***
 
 
-To simplify this practical, we use [GORILLA](http://cbl-gorilla.cs.technion.ac.il/) but note there are many better tools available.
+To simplify this practical, we use [GORILLA](http://cbl-gorilla.cs.technion.ac.il/) but note there are many better tools available and one should always be warying of confounding factors when performing functional enrichment analyses. For example, significant fold changes are usually easier to detect for more abundant proteins. 
 
 First we save our lists of proteins which have increased or decreased abundance in G1 vs M, and the background set of proteins.
 ```{r}
@@ -552,8 +492,7 @@ background_proteins <- TTest_results_annotated$UniprotID
 
 TTest_results_sig_relevant <- TTest_results_annotated %>%
   filter(sig==T) %>% # retains sig changes only
-  filter(relevant_change==T) %>% # retain relevant changes only
-  select(UniprotID, difference, abs_CI_diff) # select required columns
+  select(UniprotID, difference) # select required columns
 
 table(TTest_results_sig_relevant$difference>0)
 
@@ -601,7 +540,7 @@ The GORILLA output is split into three sections for `Processes`, `Function` and 
 
 **You've now completed the practical - Well done!**
 
-If you want to continue, you can investigate the affect of changing the thresholds used above for selecting the proteins with altered abundance. Does this change your biological interpretation of the results? Alternatively, you can have a look for R packages, software, online tools or publically available data which could help you to perform the analyses you've suggested in the final question above. Finally, if you're interested in a demonstration of the pitfalls of thresholding on the point estimate of the difference between means, see the notebook entitled "Thresholding_on_point_estimate".
+If you want to continue, you can investigate the affect of changing the thresholds used above for selecting the proteins with altered abundance. Does this change your biological interpretation of the results? Alternatively, you can have a look for R packages, software, online tools or publically available data which could help you to perform the analyses you've suggested in the final question above. Finally, if you're interested in a) further exploring how to select more 'biologically relevant' changes in protein abundance, or b) a demonstration of the pitfalls of thresholding on the point estimate of the difference between means, see the notebook entitled "Thresholding_on_point_estimate".
 
 ***
 
