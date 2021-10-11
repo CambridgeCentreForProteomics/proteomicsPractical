@@ -1,14 +1,14 @@
 ---
 title: "Quantitative proteomics data analysis"
-author: "Tom S. Smith and Oliver M. Crook"
+author: "Tom S. Smith, Charlotte Dawson, and Oliver M. Crook"
 output:
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
   html_document:
     toc: yes
     toc_float: yes
     toc_depth: 3
-  pdf_document:
-    toc: yes
-    toc_depth: '3'
 ---
 
 ***
@@ -56,9 +56,11 @@ temporarily uncomment the neccessary lines to install the package
 #install.packages("dplyr")
 #install.packages("ggplot2")
 
-suppressMessages(library(tidyr))
-suppressMessages(library(dplyr))
-suppressMessages(library(ggplot2))
+library(tidyr)
+library(dplyr, warn.conflicts = FALSE)
+library(ggplot2)
+
+options(width = 60, dplyr.summarise.inform = FALSE)
 ```
 
 ## 2. Preparing the data
@@ -73,15 +75,15 @@ The data is provided here in a tab-separated text file `"data/peptide_data.tsv"`
 We start by reading the peptide-level quantification data into a `dataframe`. The code chunk below loads the data from the .tsv file into an R dataframe called `peptides_quant`.
 
 ```{r}
-peptides_quant <- read.table("data/peptide_data.tsv", sep="\t", header=T)
+peptides_quant <- read.table("data/peptide_data.tsv", sep = "\t", header = TRUE)
 ```
 
 If we take a look at the column names (R function `colnames()`) of the `peptides_quant` dataframe, we can see we have 9 columns. The first 3 columns describe the sequence of the peptide, the modifications which were detected and the protein which the peptide has been assigned to. The next 6 columns provide the quantification values for the 3 M-phase and 3 G1-phase samples.
 
 ```{r}
 print(colnames(peptides_quant))
-print(head(peptides_quant, 5))
 print(dim(peptides_quant))
+print(head(peptides_quant, 5))
 ```
 
 You'll notice that some of the quantification values of the peptides are "NA".
@@ -117,11 +119,11 @@ values <- c(1, 4, 100, 21, 34)
 
 # we can wrap the mean and log functions together, but this can get ugly, 
 # especially if there are lots of functions and arguments.
-mean(log(values, base=2))
+mean(log(values, base = 2))
 
-# with magrittr pipes, we can see the 'flow' from
+# with magrittr pipes, we can see the 'flow' from:
 values %>%  # the values vector, through
-  log(base=2) %>%  # the log(base=2) transformation, and finally,
+  log(base = 2) %>%  # the log(base = 2) transformation, and finally,
   mean()  # the mean summarisation
 ```
 
@@ -139,8 +141,8 @@ We can aggregate the quantification values across the multiple instances of the 
 peptides_quant_no_mods <- peptides_quant %>%
   select(-Modifications) %>% # exclude the Modifications column
   group_by(Sequence, master_protein) %>% # group by the Sequence and master_protein columns
-  summarise_all(list(~sum(.))) %>% # aggregate the quantification values using the sum function
-  data.frame() # convert back to a data.frame
+  summarise(across(everything(), sum)) %>%  # aggregate the quant values using the sum function
+  ungroup()
 
 print(head(peptides_quant_no_mods))
 ```
@@ -148,31 +150,30 @@ print(head(peptides_quant_no_mods))
 ### 2d. Dealing with missing values
 
 We still have peptides with missing values
-```{r}
-options(width = 60)
-quant_columns <- colnames(peptides_quant)[4:9]
 
+```{r}
 missing_values_pre_agg <- peptides_quant  %>%
-  select(one_of(quant_columns)) %>% # only select the quantification columns
-  is.na() %>% # returns a matrix of booleans (TRUE, FALSE), where TRUE = values is NA
-  sum() # TRUE=1, FALSE=0 so sum of booleans is the number of TRUEs
+  select(where(is.numeric)) %>%  # select only quantification columns
+  is.na() %>% # get a matrix of booleans (TRUE, FALSE), where TRUE = value is NA
+  sum() # TRUE=1, FALSE=0 so sum of booleans is the number of TRUEs i.e. number of NA
 
 missing_values_post_agg <- peptides_quant_no_mods %>%
-  select(one_of(quant_columns)) %>%
+  select(where(is.numeric)) %>%
   is.na() %>% 
   sum()
 
-message(sprintf("Before aggegation, we had %i peptides with missing values,
-after aggregation we have %i peptides with missing values",
-                missing_values_pre_agg, missing_values_post_agg))
+message(
+  sprintf("Before aggregation, we had %i peptides with missing values.
+After aggregation we have %i peptides with missing values.",
+missing_values_pre_agg, missing_values_post_agg)
+)
 ```
 
 We could impute the missing values but this is beyond the scope of this practical. For our purposes, we will remove any peptide with a missing value
+
 ```{r}
-rows_without_na <- rowSums(is.na(peptides_quant_no_mods[,3:8])) == 0
-
-peptides_quant_no_mods_no_na <- peptides_quant_no_mods[rows_without_na,]
-
+peptides_quant_no_mods_no_na <- peptides_quant_no_mods %>% 
+  drop_na() # removes any row with at least 1 NA
 ```
 
 ***
@@ -190,11 +191,12 @@ Before we proceed with the aggregation to protein-level quantification, we shoul
 Below, we obtain the sum of peptide abundances in each sample (column). Note these are relatively similar but M_2 is ~2-fold less than M_1 or G1_1.
 ```{r}
 pep_tots <- peptides_quant_no_mods_no_na %>%
-  select(one_of(quant_columns)) %>%
-  colSums()
+  select(where(is.numeric)) %>% # select only quantification columns
+  colSums() # get the sum of values in each column
 
-# formatC(format='e') formats numeric values into scientific notation. See ?formatC 
-formatC(pep_tots, format='e', digits=1)
+# formatC(format='e') formats numeric values into scientific notation. 
+# See ?formatC for more info
+formatC(pep_tots, format = 'e', digits = 1)
 ```
 
 ***
@@ -210,45 +212,52 @@ Next, we normalise the peptide-level quantification to adjust for the difference
 
 ```{r}
 # make a correction factor using the total peptide abundance
-pep_tots_correction_factors <- pep_tots/mean(pep_tots) 
+pep_tots_correction_factors <- pep_tots / mean(pep_tots) 
 
+pep_tots_correction_factors
+```
+
+```{r}
+# create a copy of data pre-normalisation
 peptides_quant_norm <- peptides_quant_no_mods_no_na
 
-# the divide operation works on each cell in the dataframe by column so we need to transpose (t)
-# the dataframe so columns = peptides and rows = samples before performing the divide operation.
-peptides_quant_transposed <- t(peptides_quant_norm[, quant_columns])
+# normalise by dividing each numeric column by the corresponding correction factor
+quant_norm <- peptides_quant_no_mods_no_na %>% 
+  select(where(is.numeric)) %>% # select only quantification columns
+  as.matrix() %>% # sweep() function only works on matrix
+  sweep(MARGIN = 2, STATS = pep_tots_correction_factors, FUN = '/') # perform normalisation
 
-#Perform data normalisation
-peptides_quant_norm_transposed <- peptides_quant_transposed/pep_tots_correction_factors
-
-# then re-transform back to the initial layout
-peptides_quant_norm[, quant_columns] <- t(peptides_quant_norm_transposed)
+# replace pre-normalisation data with post-normalisation data
+peptides_quant_norm[colnames(quant_norm)] <- quant_norm
 ```
 
 We can check that the total are now the same:
 ```{r}
 norm_pep_tots <- peptides_quant_norm %>%
-  select(one_of(quant_columns)) %>%
+  select(where(is.numeric)) %>%
   colSums()
 
-formatC(norm_pep_tots, format='e', digits=1)
+formatC(norm_pep_tots, format = 'e', digits = 1)
 ```
 
 We plot the distribution of abundance values before and after normalisation allowing us to see the impact of normalisation. Here we create a small function to perform the plotting to save space from copying code. Note that we are plotting the log of the abundance values. This is because the abundance values extend across 4-orders of magnitude and are not Gaussian (normally) distributed. However, they are approximately log-Gaussian distributed.
 ```{r, message=FALSE}
-plotPeptideAbundance <- function(peptide_data, title=""){
-
+plotPeptideAbundance <- function(peptide_data, title = ""){
+  
   p <- peptide_data %>%
-    pivot_longer(cols=-c(Sequence, master_protein), # reshape data into 'long' format for ggplot
-                 names_to='sample', values_to='abundance') %>% # set names and values columns
+    pivot_longer(cols = -c(Sequence, master_protein), # reshape data into 'long' format for ggplot
+                 names_to = 'sample', values_to = 'abundance') %>% # set names and values columns
     ggplot() +
     aes(sample, log(abundance, 2)) + 
     geom_boxplot() +
-    xlab("") + ylab("Log2 Peptide Abundance") +
     theme_bw() +
-    theme(text=element_text(size=20)) +
-    ggtitle(title)
-
+    theme(text = element_text(size = 20)) +
+    labs(
+      x = "",
+      y = "Log2 Peptide Abundance",
+      title = title
+    )
+  
   print(p)
 }
 
@@ -271,10 +280,10 @@ Now we have a single quantification value for each peptide, we can aggregate acr
 ***
 
 ```{r}
-protein_quant <- peptides_quant_norm  %>%
-  select(-Sequence) %>% # exclude the Sequence column
-  group_by(master_protein) %>% # group by the master_protein column
-  summarise_all(funs(median(.))) # aggregate the quantification values using the median function
+# aggregate peptide quantification values from same protein using median function
+protein_quant <- peptides_quant_norm %>% 
+  group_by(master_protein) %>% # group by master_protein column
+  summarise(across(-Sequence, median)) # drop Sequence column and aggregate by median
 
 head(protein_quant)
 ```
@@ -323,19 +332,17 @@ This is a very simple experimental design and we recommend that you use a studen
 We perform a log-transform on the data before conducting the t-test. We use `log2()` since it's intuitive to have a single increase by a point in the `log2()` scale indicate a doubling and a two point increase indicate a 4-fold increase.
 
 ```{r}
-protein_quant_log <- protein_quant # create a new copy of the protein quant data
-
 # log2-transform the quantification values
-protein_quant_log[,quant_columns] <- log2(protein_quant_log[,quant_columns])
+protein_quant_log <- protein_quant %>% 
+  mutate(across(where(is.numeric), log2))
 ```
 
 In order to perform the t-test on each row, we create a function which performs a t-test on a vector of six values (where 1-3 = group 1, 4-6 = group 2) and returns the p-value, the difference between the group means, and the 95% confidence interval for the difference.
 ```{r}
-
-runsingleTTest <- function(quant_values){
+run_single_t_test <- function(quant_values) {
   
   test_results <- t.test(x = quant_values[4:6],
-                         y= quant_values[1:3], 
+                         y = quant_values[1:3], 
                          paired = FALSE, 
                          alternative = "two.sided",
                          conf.int = TRUE, 
@@ -348,20 +355,22 @@ runsingleTTest <- function(quant_values){
   
   ci <- as.numeric(test_results$conf.int) # extract the 95% CI
   
-  return(c(p.value, difference, ci))
+  return(c("p.value" = p.value, "difference" = difference, 
+           "CI_diff_low" = ci[1], "CI_diff_high" = ci[2]))
 }
 ```
 
 
 We now `apply` this function over the rows and reformat the output
-```{r,}
-TTest_results <- protein_quant_log
+```{r}
+# apply run_single_t_test() over each row (MARGIN = 1) for quantification columns
+t_test_results <- protein_quant_log %>% 
+  select(where(is.numeric)) %>% # select only quantification columns
+  apply(MARGIN = 1, run_single_t_test) %>% # apply our function
+  t() %>%  # transpose output to get correct layout
+  cbind(protein_quant_log) # attach results to protein_quant_log data.frame
 
-# apply the runSingleTTest function over each row ("MARGIN=1") for the quantification columns
-# We need to transform (t) the values returned by apply to get the correct layout
-TTest_results[c("p.value", "difference", "CI_diff_low", "CI_diff_high")] <- t(
-  apply(TTest_results[, quant_columns], MARGIN = 1, runsingleTTest))
-
+print(head(t_test_results))
 ```
 
 ### 3a. Accounting for multiple hypothesis test
@@ -387,16 +396,17 @@ The first approach is underpowered, since we are trying to avoid identifying eve
 Here, the downstream analysis focus on groups of proteins with shared functionality, rather than specific proteins which have altered abundance. Therefore, we can accept a low percentage of false positives. We calculate the FDR using the Benjamini-Hochberg method via the `p.adjust` function and reject the null hypothesis where the FDR < 0.01 (1%). This means approximately 1% of the rejected null hypothesis are false positives but we do not know which ones these are.
 
 ```{r}
-TTest_results$FDR <- p.adjust(TTest_results$p.value, method = "BH")
-
 FDR_threshold <- 0.01
-TTest_results$sig <- TTest_results$FDR < FDR_threshold
+
+t_test_results <- t_test_results %>% 
+  mutate(FDR = p.adjust(p.value, method = "BH"),
+         sig = FDR < FDR_threshold,
+         sig_2fold = FDR < FDR_threshold & difference > 1)
 ```
 
 We can summarise how many proteins have a significant change in abundance using the `table` function
 ```{r}
-table(TTest_results$sig)
-
+table(t_test_results$sig)
 ```
 
 ***
@@ -409,22 +419,30 @@ table(TTest_results$sig)
 We visualise the t-test results in a so-called "Volcano" plot (see below). In the second plot we add the 95% confidence intervals for the change in abundance. Many of the significant changes are small. In fact, just 16/156 of the significant changes in abundance are greater than 2-fold (Remember that we have log base 2 transformed the abundance data so a change in abundance of 1 on the log scale is a 2-fold change).
 
 ```{r}
-cat("Tally of changes > 2-fold for proteins where null hypothesis rejected")
-print(table(abs(TTest_results[TTest_results$sig == T, ]$difference > 1)))
+message(
+  sprintf("%i proteins show significant changes in abundance.
+Only %i of these proteins show a change greater than 2-fold.",
+sum(t_test_results$sig), sum(t_test_results$sig_2fold))
+)
 
-p <- ggplot(TTest_results, aes(x = difference, y = -log(p.value, 10), fill=sig)) +
-  xlab("Change in abundance (G1 vs M)") + ylab("p-value (-log10)") +
+p <- ggplot(t_test_results, aes(x = difference, y = -log(p.value, 10), fill = sig)) +
   scale_fill_discrete(name="Signficant change\nin abundance") +
   theme_bw() +
-  theme(text=element_text(size = 20))
-  
-print(p + geom_point(pch = 21, stroke = 0.25, size = 3))
+  theme(text = element_text(size = 20)) + 
+  labs(
+    x = "Change in abundance (G1 vs M)",
+    y = "p-value (-log10)"
+  )
 
-p2 <- p + geom_errorbarh(aes(xmin=CI_diff_low, xmax=CI_diff_high, colour=sig)) +
-  geom_point(pch=21, stroke=0.25, size=3) +
-  scale_color_discrete(guide=F)
+print(p + geom_point(shape = 21, stroke = 0.25, size = 3))
+```
 
-print(p2)
+```{r}
+p2 <- p + 
+  geom_errorbarh(aes(xmin = CI_diff_low, xmax = CI_diff_high, colour = sig)) +
+  scale_color_discrete(guide = "none")
+
+print(p2 + geom_point(shape = 21, stroke = 0.25, size = 3))
 ```
 
 
@@ -436,27 +454,31 @@ Now that we've identified the proteins that have a different abundance in G1-pha
 
 ```{r}
 human_proteins_ids_df <- read.csv(
-  "data/human_protein_ids.tsv", sep="\t", header=F,
-    colClasses=c("character", "character", "character", "NULL", "NULL"),
-  col.names = c("UniprotID", "Name", "Description", NA, NA))
+  "data/human_protein_ids.tsv", sep = "\t", header = FALSE,
+  colClasses = c("character", "character", "character", "NULL", "NULL"),
+  col.names = c("UniprotID", "Name", "Description", NA, NA)
+)
 
-TTest_results_annotated <- merge(human_proteins_ids_df, TTest_results, by.x="UniprotID", by.y="master_protein", all.y=TRUE)
+t_test_results_annot <- merge(human_proteins_ids_df,
+                              t_test_results, 
+                              by.x = "UniprotID",
+                              by.y = "master_protein",
+                              all.y = TRUE)
 
-
-# we'll write the results out to file so they can be further interogated outside this notebooks
-write.table(TTest_results_annotated, './data/TTest_results_annotated.tsv',
-            row.names=FALSE, sep='\t')
+# we'll write the results out to file so they can be 
+# further interrogated outside this notebook
+write.table(t_test_results_annot, './data/t_test_results_annotated.tsv',
+            row.names = FALSE, sep = '\t')
 ```
 
 We can inspect the Descriptions for the proteins which have a significant decrease in abundance in G1 vs M
 ```{r}
-TTest_results_annotated %>%
-  filter(sig==T) %>% # significant changes
-  filter(difference<0) %>% # decrease in abundance
-  arrange(p.value) %>% # sort by CI
+t_test_results_annot %>%
+  filter(sig == TRUE, # significant changes
+         difference < 0) %>% # decrease in abundance
+  arrange(p.value) %>% # sort by p-value
   select(Name, Description, p.value, FDR) %>% # select columns of interest
   head(20)
-  
 ```
 
 Can you see what functions some of these proteins might have based on their descriptions? 
@@ -488,23 +510,24 @@ To simplify this practical, we use [GORILLA](http://cbl-gorilla.cs.technion.ac.i
 
 First we save our lists of proteins which have increased or decreased abundance in G1 vs M, and the background set of proteins.
 ```{r}
-background_proteins <- TTest_results_annotated$UniprotID
+background_proteins <- t_test_results_annot$UniprotID
 
-TTest_results_sig_relevant <- TTest_results_annotated %>%
-  filter(sig==T) %>% # retains sig changes only
+t_test_results_sig_relevant <- t_test_results_annot %>%
+  filter(sig == TRUE) %>% # retains sig changes only
   select(UniprotID, difference) # select required columns
 
-table(TTest_results_sig_relevant$difference>0)
+table(t_test_results_sig_relevant$difference > 0)
 
 # identify proteins with increase in abundance
-up_proteins <- TTest_results_sig_relevant %>%
-  filter(difference>0) %>% # positive change in abundance
+up_proteins <- t_test_results_sig_relevant %>%
+  filter(difference > 0) %>% # positive change in abundance
   select(UniprotID)
 
-dw_proteins <- TTest_results_sig_relevant %>%
-  filter(difference<0) %>%
+# identify proteins with decrease in abundance
+dw_proteins <- t_test_results_sig_relevant %>%
+  filter(difference < 0) %>%
   select(UniprotID)  
-  
+
 write(unlist(up_proteins), "data/foreground_up.tsv")
 write(unlist(dw_proteins), "data/foreground_dw.tsv")
 write(background_proteins, "data/background.tsv")
