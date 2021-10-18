@@ -2,13 +2,13 @@
 title: "Quantitative proteomics data analysis"
 author: "Tom S. Smith, Charlotte Dawson, and Oliver M. Crook"
 output:
-  pdf_document:
-    toc: yes
-    toc_depth: '3'
   html_document:
     toc: yes
     toc_float: yes
     toc_depth: 3
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
 ---
 
 ***
@@ -108,7 +108,7 @@ filter(peptides_quant, Sequence == 'AAAEELQEAAGAGDGATENGVQPPK')
 6. What do you think `NA` means in this context?
 7. Why do you think some of the quantification values are `NA`?
 8. What do you think we should do with `NA`?
-9. Why do peptide 'modifications' represent?
+9. What do peptide 'modifications' represent?
 10. Why might we have multiple quantification values for the same peptide but with different modifications?
 
 
@@ -192,6 +192,7 @@ peptides_quant_no_mods_no_na <- peptides_quant_no_mods %>%
 ***
 
 ### 2e. Normalisation: What is it and why do we do it?
+
 Before we proceed with the aggregation to protein-level quantification, we should consider whether we need to perform any normalisation to the data. The total peptide abundance in each column should be approximately the same. However, we can see below that this is not the case.
 
 Below, we obtain the sum of peptide abundances in each sample (column). Note these are relatively similar but M_2 is ~2-fold less than M_1 or G1_1.
@@ -424,6 +425,10 @@ table(t_test_results$sig)
 **Check your knowledge**
 
 1. Can you add another command in the cell below to work out how many of the proteins have a significant increase in abundance and how many decrease?
+
+```{r}
+
+```
 
 ***
 
