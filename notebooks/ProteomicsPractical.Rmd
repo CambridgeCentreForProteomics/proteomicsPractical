@@ -32,7 +32,7 @@ To measure protein abundances, proteins are first digested to peptides with tryp
 
 The peptide spectrum matching and quantification steps have already been completed and the peptide-level quantification is provided to you.
 
-```{r}
+```{r, echo=FALSE}
 knitr::include_graphics("images/experimental_plan.png")
 ```
 
@@ -517,6 +517,7 @@ In this case, we could either perform:
 
 2. Two tests, one where the foreground is all proteins with a significant increase in abundance, and the other is proteins with a significant decrease in abundance. 
 
+***
 **Check your knowledge**
 
 1. What do you the most suitable background would be for the GO term over-representation analysis?
