@@ -13,16 +13,17 @@ output:
 
 ***
 
-**Learning outcomes**
+**Learning Outcomes**
 
 1. Be able to aggregate peptide level data to obtain protein-level quantification.
-2. Be able to normalise proteomics data and understand why we perform normalistion.
+2. Be able to normalise proteomics data and understand why we perform normalisation.
 3. Perform and understand statistical tests to identify changes in protein abundances.
-4. Perform a functional analysis to identify the perturbed biological processes
+4. Perform a functional analysis to identify the perturbed biological processes.
 
 ***
 
 ## 1. Introduction
+
 This practical analyses data from an experiment to examine proteins involved in the cell cycle (See diagram below). Cells from a human cell line are treated with Nocodazole to inhibit polymerisation of microtubules and block transition beyond the prometaphase stage of M-phase.
 
 Cells are then released from M-phase by withdrawing Nocodazole. Samples are taken in triplicate at 0 hours and at 5 hours after release from M-phase. This process generates 3 x M-phase and 3 x G1-phase samples from 6 separate batches of cells.
@@ -31,7 +32,9 @@ To measure protein abundances, proteins are first digested to peptides with tryp
 
 The peptide spectrum matching and quantification steps have already been completed and the peptide-level quantification is provided to you.
 
-![](images/experimental_plan.png)
+```{r}
+knitr::include_graphics("images/experimental_plan.png")
+```
 
 ***
 **Check your knowledge**
@@ -49,8 +52,8 @@ The peptide spectrum matching and quantification steps have already been complet
 
 
 First, we load the required libraries. If you get a message saying `Error in library(sds) : there is no package called ...`,
+temporarily uncomment the necessary lines to install the package.
 
-temporarily uncomment the neccessary lines to install the package
 ```{r}
 #install.packages("tidyr")
 #install.packages("dplyr")
@@ -69,16 +72,16 @@ options(width = 60, dplyr.summarise.inform = FALSE)
 
 Usually your data is provided to you in some format such as a text file, excel file or some other format. We would like to load this data into R so we can analyse it. 
 
-For the purposes of this practical, peptides which come from proteins in the [cRAP database](http://www.thegpm.org/crap/) of common proteomics contaminates, e.g keratin, have been removed. Peptides which cannot be uniquely assigned to a single protein have also been removed. 
+For the purposes of this practical, peptides which come from proteins in the [cRAP database](http://www.thegpm.org/crap/) of common proteomics contaminants, e.g keratin, have been removed. Peptides which cannot be uniquely assigned to a single protein have also been removed. 
 
 The data is provided here in a tab-separated text file `"data/peptide_data.tsv"`, which is located in the repository. 
-We start by reading the peptide-level quantification data into a `dataframe`. The code chunk below loads the data from the .tsv file into an R dataframe called `peptides_quant`.
+We start by reading the peptide-level quantification data into a `data.frame`. The code chunk below loads the data from the .tsv file into an R data frame called `peptides_quant`.
 
 ```{r}
 peptides_quant <- read.table("data/peptide_data.tsv", sep = "\t", header = TRUE)
 ```
 
-If we take a look at the column names (R function `colnames()`) of the `peptides_quant` dataframe, we can see we have 9 columns. The first 3 columns describe the sequence of the peptide, the modifications which were detected and the protein which the peptide has been assigned to. The next 6 columns provide the quantification values for the 3 M-phase and 3 G1-phase samples.
+If we take a look at the column names (R function `colnames()`) of the `peptides_quant` data frame, we can see we have 9 columns. The first 3 columns describe the sequence of the peptide, the modifications on the peptide which were detected and the protein which the peptide has been assigned to. The next 6 columns provide the quantification values for each peptide across the 3 M-phase and 3 G1-phase samples.
 
 ```{r}
 print(colnames(peptides_quant))
@@ -86,9 +89,10 @@ print(dim(peptides_quant))
 print(head(peptides_quant, 5))
 ```
 
-You'll notice that some of the quantification values of the peptides are "NA".
+You'll notice that some of the quantification values of the peptides are `NA`.
 
-We can also see that some of the peptides have the same sequence but different modifications. Below, we inspect one such peptide sequence
+We can also see that some of the peptides have the same sequence but different modifications. Below, we inspect one such peptide sequence.
+
 ```{r}
 filter(peptides_quant, Sequence == 'AAAEELQEAAGAGDGATENGVQPPK') 
 ```
@@ -97,13 +101,13 @@ filter(peptides_quant, Sequence == 'AAAEELQEAAGAGDGATENGVQPPK')
 **Check your knowledge**
 
 1. Where can I find keratin in daily life?
-2. Why is keratin a contaminate?
-3. Why do we worry about contaminates?
+2. Why is keratin a contaminant?
+3. Why do we worry about contaminants?
 4. What does if mean to say a peptide is 'assigned' to a protein. Why could a peptide be assigned to multiple proteins?
 5. How many peptides were quantified in this experiment?
-6. What do you think NA means in this context?
-7. Why do you think some of the quantification values are NA?
-8. What do you think we should do with NA?
+6. What do you think `NA` means in this context?
+7. Why do you think some of the quantification values are `NA`?
+8. What do you think we should do with `NA`?
 9. Why do peptide 'modifications' represent?
 10. Why might we have multiple quantification values for the same peptide but with different modifications?
 
@@ -111,9 +115,11 @@ filter(peptides_quant, Sequence == 'AAAEELQEAAGAGDGATENGVQPPK')
 ***
 
 ### 2b. `magrittr` pipes
-The `magrittr` package introduced 'pipe' functions to R. Here, we will be using the `%>%` pipe a few times so the next two cells demonstrates how this works in case you haven't come across it before as the syntax can look a little odd. Feel free to skip these cells if you're confident you understand '%>%'.
+
+The `magrittr` package introduced 'pipe' functions to R. Here, we will be using the `%>%` pipe a few times so the next two cells demonstrates how this works in case you haven't come across it before as the syntax can look a little odd. Feel free to skip these cells if you're confident you understand `%>%`.
 
 The `%>%` pipe allows you to use the output from one function to be the input for the next function, much like the `|` pipe in bash. The main advantage of this is to make the code easier to understand. The pipe can be used to pass any object. However, to keep things simple here, for the example below, we will just consider a simple vector of values, from which we wish to identify the mean of the log2-transformed values.
+
 ```{r}
 values <- c(1, 4, 100, 21, 34)
 
@@ -127,7 +133,7 @@ values %>%  # the values vector, through
   mean()  # the mean summarisation
 ```
 
-Magrittr pipes become especially useful for piping together complex functions when reformating, summarising and plotting data. They also make it much easier to document each step. If you're wondering how the package got its name, see [The_Treachery_of_Images](https://en.wikipedia.org/wiki/The_Treachery_of_Images)
+Magrittr pipes become especially useful for piping together complex functions when re-formating, summarising and plotting data. They also make it much easier to document each step. If you're wondering how the package got its name, see [The_Treachery_of_Images](https://en.wikipedia.org/wiki/The_Treachery_of_Images).
 
 With that aside done, let's return to the practical.
 
@@ -135,7 +141,7 @@ With that aside done, let's return to the practical.
 
 ### 2c. Aggregating the peptide quantification data to generate protein-level quantification
 
-We can aggregate the quantification values across the multiple instances of the same peptide with difference modifications using the `dyplr` package
+We can aggregate the quantification values across the multiple instances of the same peptide with difference modifications using the `dplyr` package.
 
 ```{r}
 peptides_quant_no_mods <- peptides_quant %>%
@@ -149,7 +155,7 @@ print(head(peptides_quant_no_mods))
 
 ### 2d. Dealing with missing values
 
-We still have peptides with missing values
+We still have peptides with missing values.
 
 ```{r}
 missing_values_pre_agg <- peptides_quant  %>%
@@ -169,7 +175,7 @@ missing_values_pre_agg, missing_values_post_agg)
 )
 ```
 
-We could impute the missing values but this is beyond the scope of this practical. For our purposes, we will remove any peptide with a missing value
+We could impute the missing values but this is beyond the scope of this practical. For our purposes, we will remove any peptide with a missing value.
 
 ```{r}
 peptides_quant_no_mods_no_na <- peptides_quant_no_mods %>% 
@@ -179,9 +185,9 @@ peptides_quant_no_mods_no_na <- peptides_quant_no_mods %>%
 ***
 **Check your knowledge**
 
-1. Why should we remove NA?
-2. Are there biological reasons for NA?
-3. What imputation stratagies exist?
+1. Why should we remove `NA`?
+2. Are there biological reasons for `NA`?
+3. What imputation strategies exist?
 
 ***
 
@@ -189,6 +195,7 @@ peptides_quant_no_mods_no_na <- peptides_quant_no_mods %>%
 Before we proceed with the aggregation to protein-level quantification, we should consider whether we need to perform any normalisation to the data. The total peptide abundance in each column should be approximately the same. However, we can see below that this is not the case.
 
 Below, we obtain the sum of peptide abundances in each sample (column). Note these are relatively similar but M_2 is ~2-fold less than M_1 or G1_1.
+
 ```{r}
 pep_tots <- peptides_quant_no_mods_no_na %>%
   select(where(is.numeric)) %>% # select only quantification columns
@@ -208,7 +215,7 @@ formatC(pep_tots, format = 'e', digits = 1)
 
 ***
 
-Next, we normalise the peptide-level quantification to adjust for the differences in the total peptide abundance
+Next, we normalise the peptide-level quantification to adjust for the differences in the total peptide abundance.
 
 ```{r}
 # make a correction factor using the total peptide abundance
@@ -232,6 +239,7 @@ peptides_quant_norm[colnames(quant_norm)] <- quant_norm
 ```
 
 We can check that the total are now the same:
+
 ```{r}
 norm_pep_tots <- peptides_quant_norm %>%
   select(where(is.numeric)) %>%
@@ -241,14 +249,14 @@ formatC(norm_pep_tots, format = 'e', digits = 1)
 ```
 
 We plot the distribution of abundance values before and after normalisation allowing us to see the impact of normalisation. Here we create a small function to perform the plotting to save space from copying code. Note that we are plotting the log of the abundance values. This is because the abundance values extend across 4-orders of magnitude and are not Gaussian (normally) distributed. However, they are approximately log-Gaussian distributed.
+
 ```{r, message=FALSE}
-plotPeptideAbundance <- function(peptide_data, title = ""){
+plotPeptideAbundance <- function(peptide_data, title = "") {
   
   p <- peptide_data %>%
     pivot_longer(cols = -c(Sequence, master_protein), # reshape data into 'long' format for ggplot
                  names_to = 'sample', values_to = 'abundance') %>% # set names and values columns
-    ggplot() +
-    aes(sample, log(abundance, 2)) + 
+    ggplot(aes(x = sample, y = log(abundance, 2))) +
     geom_boxplot() +
     theme_bw() +
     theme(text = element_text(size = 20)) +
@@ -298,7 +306,7 @@ We now want to identify the proteins with significant changes in abundance betwe
 
 Formally, we state our null hypothesis:
 
-**(H0)** The change in abundance for a protein is zero
+**(H0)** The change in abundance for a protein is zero.
 
 We want to test this against the alternative hypothesis: 
 
@@ -310,9 +318,9 @@ For each protein, we conduct an independent statistical test. The important poin
 * The samples are not paired, e.g M-phase replicate 1 and G1-phase replicate 1 are not related samples.
 * We want to identify changes in both directions.
 * The protein abundances are not Gaussian (normal) distributed. However, they are approximately log-Gaussian distributed.
-* The cell cycle stage is not expected to have a large impact on the biological variability.
+* The cell cycle stage is **not** expected to have a large impact on the biological variability.
 
-This is a very simple experimental design and we recommend that you use a student's t-test for this practical. However, there are other statistical tests which would also be suitable. For example, if one was concerned about whether the protein abundances are truly approximately Guassian, a non-parametric test such as the Mann-Whitney U test or Wilcoxon rank-sum tests may be used depending on the exact experimental design. Alternatively, if the experimental design was more complicated and we wished to take into account confounding factors, or investigate interactions between factors, we could use ANOVA or Linear Regression. Choosing the correct test must be based on the assumptions of your experimental design, choosing a test so that you see the results you want is academic fraud.
+This is a very simple experimental design and we recommend that you use a Student's t-test for this practical. However, there are other statistical tests which would also be suitable. For example, if one was concerned about whether the protein abundances are truly approximately Gaussian, a non-parametric test such as the Mann-Whitney U test or Wilcoxon rank-sum tests may be used depending on the exact experimental design. Alternatively, if the experimental design was more complicated and we wished to take into account confounding factors, or investigate interactions between factors, we could use ANOVA or Linear Regression. Choosing the correct test must be based on the assumptions of your experimental design; choosing a test so that you see the results you want is academic fraud.
 
 ***
 **Check your knowledge**
@@ -338,6 +346,7 @@ protein_quant_log <- protein_quant %>%
 ```
 
 In order to perform the t-test on each row, we create a function which performs a t-test on a vector of six values (where 1-3 = group 1, 4-6 = group 2) and returns the p-value, the difference between the group means, and the 95% confidence interval for the difference.
+
 ```{r}
 run_single_t_test <- function(quant_values) {
   
@@ -361,7 +370,8 @@ run_single_t_test <- function(quant_values) {
 ```
 
 
-We now `apply` this function over the rows and reformat the output
+We now `apply` this function over the rows and reformat the output.
+
 ```{r}
 # apply run_single_t_test() over each row (MARGIN = 1) for quantification columns
 t_test_results <- protein_quant_log %>% 
@@ -382,7 +392,7 @@ print(head(t_test_results))
 
 ***
 
-The problem of multiple comparisons is the following. Suppose, I have two groups and I make 100 tests between these two groups. Let us assume I make these tests at the 5% level (alpha = 0.05) and then assume all my 100 test correspondend to support of the null hypothesis. In expectation ("on average"), the number of incorrect rejections would be 5.
+The problem of multiple comparisons is the following. Suppose, I have two groups and I make 100 tests between these two groups. Let us assume I make these tests at the 5% level (alpha = 0.05) and then assume all my 100 test corresponded to support of the null hypothesis. In expectation ("on average"), the number of incorrect rejections would be 5.
 
 
 Since we have conducted multiple tests, we get many false positives if we use the uncorrected p-values. Here are the two most popular options to deal with the multiple testing. Note that multiple testing is still an active research area.
@@ -404,7 +414,8 @@ t_test_results <- t_test_results %>%
          sig_2fold = FDR < FDR_threshold & difference > 1)
 ```
 
-We can summarise how many proteins have a significant change in abundance using the `table` function
+We can summarise how many proteins have a significant change in abundance using the `table` function.
+
 ```{r}
 table(t_test_results$sig)
 ```
@@ -425,6 +436,11 @@ Only %i of these proteins show a change greater than 2-fold.",
 sum(t_test_results$sig), sum(t_test_results$sig_2fold))
 )
 
+
+```
+
+
+```{r}
 p <- ggplot(t_test_results, aes(x = difference, y = -log(p.value, 10), fill = sig)) +
   scale_fill_discrete(name="Signficant change\nin abundance") +
   theme_bw() +
@@ -448,7 +464,7 @@ print(p2 + geom_point(shape = 21, stroke = 0.25, size = 3))
 
 ## 4. Functional analysis of proteins with differential abundance
 
-### 4a. What are the proteins
+### 4a. What are the proteins?
 
 Now that we've identified the proteins that have a different abundance in G1-phase vs. M-phase, the next step is to investigate the functions for these proteins. First, let's add the protein names and descriptions (from another data file).
 
@@ -471,7 +487,8 @@ write.table(t_test_results_annot, './data/t_test_results_annotated.tsv',
             row.names = FALSE, sep = '\t')
 ```
 
-We can inspect the Descriptions for the proteins which have a significant decrease in abundance in G1 vs M
+We can inspect the descriptions for the proteins which have a significant decrease in abundance in G1 vs M.
+
 ```{r}
 t_test_results_annot %>%
   filter(sig == TRUE, # significant changes
@@ -483,13 +500,15 @@ t_test_results_annot %>%
 
 Can you see what functions some of these proteins might have based on their descriptions? 
 
-As with most such analyses there are likely be some proteins you have heard of, but many more which you haven't. After all, there are ~20,000 protein-coding genes in the human genome! It's also hard looking at the proteins which have changed to understand what shared functional pathways they may have in common. Many of the protein's functions may not be obvious just from their description. Likewise, the sub-cellular localisation may not be obvious, and it could be that most of the proteins with altered abundance have the same localisation which would be an interesting observation. Even if you were a fountain of knowledge on human proteins, it's difficult by eye to know if an observation is unexpected. For example, if you see 4 kinases which are all more abundant in G1, is this a relevant observation? To answer this, you would need to know how many kinases _could_ have changed abundance in your experiment, from which you can estimate how many kinases you would expect to see _by chance_, given the number of proteins with an altered abundance. In short, just looking at the protein descriptions and using your prior knowledge only gets you so far. 
+As with most such analyses there are likely be some proteins you have heard of, but many more which you haven't. After all, there are ~20,000 protein-coding genes in the human genome! It's also hard looking at the proteins which have changed to understand what shared functional pathways they may have in common. Many of the protein's functions may not be obvious just from their description. Likewise, the sub-cellular localisation may not be obvious, and it could be that most of the proteins with altered abundance have the same localisation which would be an interesting observation. 
+
+Even if you were a fountain of knowledge on human proteins, it's difficult by eye to know if an observation is unexpected. For example, if you see 4 kinases which are all more abundant in G1, is this a relevant observation? To answer this, you would need to know how many kinases _could_ have changed abundance in your experiment, from which you can estimate how many kinases you would expect to see _by chance_, given the number of proteins with an altered abundance. In short, just looking at the protein descriptions and using your prior knowledge only gets you so far. 
 
 ### 4b. Identifying over-representation of particular protein functions/localisations
 
-Thankfully, the [Gene Ontology (GO) consortium](http://www.geneontology.org/) have defined a set of descriptions for genes and their protein products, split into 3 categories, Molecular Functions, Biological Processes and Cellular Localisations. These terms are hierarchical. For example as shown [here](https://www.ebi.ac.uk/QuickGO/term/GO:0003723), `RNA binding` is a child term of `Nucleic acid binding` and a parent term of e.g `RNA cap binding`. 
+Thankfully, the [Gene Ontology (GO) consortium](http://www.geneontology.org/) have defined a set of descriptions for genes and their protein products, split into 3 categories: Molecular Functions (MF), Biological Processes (BP) and Cellular Components (CC). These terms are hierarchical. For example as shown [here](https://www.ebi.ac.uk/QuickGO/term/GO:0003723), `RNA binding` is a child term of `Nucleic acid binding` and a parent term of e.g `RNA cap binding`. 
 
-To understand the biological relevance of the protein abundance changes between M and G1 phase, we can look for GO terms which are over-represented in the proteins with a significant change. A GO over-representation analysis involves asking whether a GO term is more frequent in a selected set of proteins (the `foreground`) relative to all the proteins which could have been selected (the `background`). As with any over-representation analysis, it's important to consider what the `foreground` and `background` should be. 
+To understand the biological relevance of the protein abundance changes between M and G1-phase, we can look for GO terms which are over-represented in the proteins with a significant change. A GO over-representation analysis involves asking whether a GO term is more frequent in a selected set of proteins (the `foreground`) relative to all the proteins which could have been selected (the `background`). As with any over-representation analysis, it's important to consider what the `foreground` and `background` should be. 
 
 
 In this case, we could either perform:
@@ -500,15 +519,16 @@ In this case, we could either perform:
 
 **Check your knowledge**
 
-1. What do you the most suitable background would be for the GO term over-represenatation analysis?
-2. Do you think it makes more sense to perform one or two tests for the GO term over-represenatation analysis?
+1. What do you the most suitable background would be for the GO term over-representation analysis?
+2. Do you think it makes more sense to perform one or two tests for the GO term over-representation analysis?
 
 ***
 
 
-To simplify this practical, we use [GORILLA](http://cbl-gorilla.cs.technion.ac.il/) but note there are many better tools available and one should always be warying of confounding factors when performing functional enrichment analyses. For example, significant fold changes are usually easier to detect for more abundant proteins. 
+To simplify this practical, we use [GORILLA](http://cbl-gorilla.cs.technion.ac.il/) to perform the over-representation analysis. But note there are many better tools available and one should always be wary of confounding factors when performing functional enrichment analyses. For example, significant fold changes are usually easier to detect for more abundant proteins. 
 
 First we save our lists of proteins which have increased or decreased abundance in G1 vs M, and the background set of proteins.
+
 ```{r}
 background_proteins <- t_test_results_annot$UniprotID
 
@@ -533,9 +553,7 @@ write(unlist(dw_proteins), "data/foreground_dw.tsv")
 write(background_proteins, "data/background.tsv")
 ```
 
-Then go to the web-link:
-
-http://cbl-gorilla.cs.technion.ac.il/
+Then go to the web-link: http://cbl-gorilla.cs.technion.ac.il/
 
 To use [GORILLA](http://cbl-gorilla.cs.technion.ac.il/):
 
@@ -546,9 +564,10 @@ To use [GORILLA](http://cbl-gorilla.cs.technion.ac.il/):
 
 Leave the advanced parameters as they are and click `Search Enriched GO terms`.
 
-The GORILLA output is split into three sections for `Processes`, `Function` and `Component`. For each section there is graph depicting the over-represented terms and their relationship to one another. Below this there is a table detailing the GO terms which are over-represented. Each GO terms is associated with a p-value for the over-representation and an estimation of the False Discovery Rate (FDR). For this practical, only consider any GO term over-representation where the FDR < 0.01 (1E-2)
+The GORILLA output is split into three sections at the top of the page,
+for `Processes`, `Function` and `Component`. For each section there is graph depicting the over-represented terms and their relationship to one another. Below this there is a table detailing the GO terms which are over-represented. Each GO term is associated with a p-value for the over-representation and an estimation of the False Discovery Rate (FDR). For this practical, only consider any GO term over-representation where the FDR < 0.01 (1E-2)
 
-
+***
 **Check your knowledge**
 
 1. What GO terms are over-represented in the proteins with a change in abundance between M and G1 phase?
@@ -563,7 +582,7 @@ The GORILLA output is split into three sections for `Processes`, `Function` and 
 
 **You've now completed the practical - Well done!**
 
-If you want to continue, you can investigate the affect of changing the thresholds used above for selecting the proteins with altered abundance. Does this change your biological interpretation of the results? Alternatively, you can have a look for R packages, software, online tools or publically available data which could help you to perform the analyses you've suggested in the final question above. Finally, if you're interested in a) further exploring how to select more 'biologically relevant' changes in protein abundance, or b) a demonstration of the pitfalls of thresholding on the point estimate of the difference between means, see the notebook entitled "Thresholding_on_point_estimate".
+If you want to continue, you can investigate the effect of changing the thresholds used above for selecting the proteins with altered abundance. Does this change your biological interpretation of the results? Alternatively, you can have a look for R packages, software, online tools or publicly available data which could help you to perform the analyses you've suggested in the final question above. Finally, if you're interested in a) further exploring how to select more 'biologically relevant' changes in protein abundance, or b) a demonstration of the pitfalls of thresholding on the point estimate of the difference between means, see the notebook entitled "Thresholding_on_point_estimate".
 
 ***
 
